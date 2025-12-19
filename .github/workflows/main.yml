@@ -1,0 +1,24 @@
+name: "Create Conan Package"
+on: push
+
+jobs:
+  build_linux_x86_64:
+    name: "Linux"
+    uses: Privatehive/conan-workflows/.github/workflows/createPackage.yml@master
+    with:
+      name: "x86_64"
+      image: "ubuntu-22.04"
+      export_conan_cache: true
+      conan_remotes: https://conan.privatehive.de/artifactory/api/conan/public-conan
+
+  upload_recipe:
+    name: "Finalize"
+    uses: Privatehive/conan-workflows/.github/workflows/uploadRecipe.yml@master
+    needs: [ build_linux_x86_64 ]
+    if: ${{ success() }}
+    secrets: inherit
+    with:
+      import_conan_cache: true
+      upload_include_package: true
+      publish_property: ${{ github.ref == 'refs/heads/master' }}
+      conan_upload_remote: https://conan.privatehive.de/artifactory/api/conan/public-conan
