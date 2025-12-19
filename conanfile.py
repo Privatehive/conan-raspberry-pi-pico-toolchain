@@ -31,7 +31,7 @@ class RaspberryPiPicoToolchainConan(ConanFile):
     exports = ("info.json")
     exports_sources = ["Toolchain-rpi.cmake"]
     # ---Binary model---
-    settings = "os"
+    settings = "os", "arch"
     # ---Build---
     generators = []
     # ---Folders---
