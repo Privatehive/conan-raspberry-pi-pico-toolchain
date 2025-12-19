@@ -38,12 +38,14 @@ class RaspberryPiPicoToolchainConan(ConanFile):
     no_copy_source = True
 
     def validate(self):
-        if self.settings.os != "Linux":
-            raise ConanInvalidConfiguration("Only Linux is supported")
-
-    #def system_requirements(self):
-    #    Apt(self).install(["binutils"])
-    #    PacMan(self).install(["binutils"])
+        valid_os = ["Linux"]
+        if str(self.settings.os) not in valid_os:
+            raise ConanInvalidConfiguration(
+                f"{self.name} {self.version} is only supported for the following operating systems: {valid_os}")
+        valid_arch = ["x86_64"]
+        if str(self.settings.arch) not in valid_arch:
+            raise ConanInvalidConfiguration(
+                f"{self.name} {self.version} is only supported for the following architectures on {self.settings.os}: {valid_arch}")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
