@@ -1,5 +1,21 @@
 sources:
-  2.2.0:
-    url: "https://github.com/raspberrypi/pico-sdk/releases/download/2.2.0/pico-sdk-2.2.0.tar.gz"
-    sha256: "2678fe2b176cf64a7f71cd91749fdf9134c8cf7ff84b7199dfe5ea0d6dba6fa4"
-    filename: "pico-sdk.tar.gz"
+  sdk:
+    2.2.0:
+      url: "https://github.com/raspberrypi/pico-sdk/releases/download/2.2.0/pico-sdk-2.2.0.tar.gz"
+      sha256: "2678fe2b176cf64a7f71cd91749fdf9134c8cf7ff84b7199dfe5ea0d6dba6fa4"
+      filename: "pico-sdk.tar.gz"
+  picotool:
+    2.2.0:
+      url: "https://github.com/raspberrypi/picotool/releases/download/2.2.0/picotool-2.2.0.tar.gz"
+      sha256: "44b640b596fe0ab034c64a5a07d6648410b0631a12a151e06e24dc383a70cdd0"
+      filename: "picotool.tar.gz"
+  arm-cross-compiler-pico:
+    1.1.0:
+      url: "https://github.com/tttapa/docker-arm-cross-toolchain/releases/download/1.1.0/x-tools-arm-pico-eabi-gcc13.tar.xz"
+      sha256: "03e42a7d8002ad8927fde455363e4da65a17d3a7c96a41173eea40a2571cf5fe"
+      filename: "arm-pico-eabi-gcc13.tar.xz"
+  arm-cross-compiler-pico2:
+    1.1.0:
+      url: "https://github.com/tttapa/docker-arm-cross-toolchain/releases/download/1.1.0/x-tools-arm-pico2-eabi-gcc13.tar.xz"
+      sha256: "da5259ca262ab3a7e699ec66a16ec54c72f8c6b10672bd81d4e6a6a3d14cf0a9"
+      filename: "arm-pico2-eabi-gcc13.tar.xz"

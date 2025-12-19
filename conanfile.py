@@ -5,6 +5,8 @@ from conan import ConanFile
 from conan.tools.system.package_manager import Apt, PacMan
 from conan.tools.files import download, get, unzip, copy
 from conan.errors import ConanInvalidConfiguration
+from conan.tools.cmake import CMake, CMakeToolchain
+from conan.tools.env import VirtualBuildEnv
 import json, os
 
 required_conan_version = ">=2.0"
@@ -26,12 +28,14 @@ class RaspberryPiPicoToolchainConan(ConanFile):
     url = jsonInfo["repository"]
     # ---Requirements---
     requires = []
-    tool_requires = []
+    tool_requires = ["cmake/[>=3.13 <3.27]", "ninja/[>=1.11.1]"]
     # ---Sources---
     exports = ("info.json")
     exports_sources = ["Toolchain-rpi.cmake"]
     # ---Binary model---
-    settings = "os", "arch"
+    settings = "os", "compiler", "build_type", "arch"
+    options = {"board": ["pico", "pico2"]}
+    default_options = {"board": "pico"}
     # ---Build---
     generators = []
     # ---Folders---
@@ -47,63 +51,65 @@ class RaspberryPiPicoToolchainConan(ConanFile):
             raise ConanInvalidConfiguration(
                 f"{self.name} {self.version} is only supported for the following architectures on {self.settings.os}: {valid_arch}")
 
+    def system_requirements(self):
+        Apt(self).install(["binutils"])
+        PacMan(self).install(["binutils"])
+
+    def generate(self):
+        ms = VirtualBuildEnv(self)
+        tc = CMakeToolchain(self, generator="Ninja")
+        tc.variables["PICO_SDK_PATH"] = os.path.join(self.source_folder, "pico-sdk-%s" % self.version)
+        tc.generate()
+        ms.generate()
+
     def source(self):
-        get(self, **self.conan_data["sources"][self.version], strip_root=True)
-        #self.run("chmod -R +w " + os.path.join(self.source_folder, "x-tools"))
-        #for val in self.conan_data["packages-" + self.version]:
-        #    self.install_deb_pkg(val["name"], val["sha256"])
+        get(self, **self.conan_data["sources"]["sdk"][self.version])
+        get(self, **self.conan_data["sources"]["picotool"][self.version])
+        get(self, **self.conan_data["sources"]["arm-cross-compiler-pico"]["1.1.0"])
+        get(self, **self.conan_data["sources"]["arm-cross-compiler-pico2"]["1.1.0"])
+        self.run("chmod -R +w " + os.path.join(self.source_folder, "x-tools"))
+
+    def build(self):
+        cmake = CMake(self)
+        cmake.configure(build_script_folder="picotool-%s" % self.version)
+        cmake.build()
+        cmake.install()
 
     def package(self):
-        copy(self, pattern="*", src=self.source_folder, dst=self.package_folder)
-        #copy(self, pattern="pico_sdk_init.cmake", src=self.source_folder, dst=self.package_folder)
-        #copy(self, pattern="pico_sdk_version.cmake", src=self.source_folder, dst=self.package_folder)
-        #copy(self, pattern="*", src=os.path.join(self.source_folder, "cmake"), dst=os.path.join(self.package_folder, "cmake"))
-        #copy(self, pattern="*", src=os.path.join(self.source_folder, "sysroot", "lib"), dst=os.path.join(self.package_folder, "x-tools", self.toolchainabi, self.toolchainabi, "sysroot", "lib"))
-        #copy(self, pattern="*", src=os.path.join(self.source_folder, "sysroot", "usr"), dst=os.path.join(self.package_folder, "x-tools", self.toolchainabi, self.toolchainabi, "sysroot", "usr"))
+        copy(self, pattern="*", src=os.path.join(self.source_folder, "pico-sdk-%s" % self.version), dst=os.path.join(self.package_folder, "pico-sdk-%s" % self.version))
+        copy(self, pattern="*", src=os.path.join(self.source_folder, "x-tools"), dst=os.path.join(self.package_folder, "x-tools"))
 
     def define_tool_var(self, name, value, bin_folder):
         path = os.path.join(bin_folder, value)
         self.output.info('Creating %s environment variable: %s' % (name, path))
         return path
 
+    @property
+    def toolchainabi(self):
+        if self.options.board == 'pico':
+            return "arm-pico-eabi"
+        elif self.options.board == 'pico2':
+            return "arm-pico2-eabi"
+        else:
+            return ""
+
     def package_info(self):
-        package = self.package_folder
 
-        #toolchain = os.path.join(package, 'x-tools', self.toolchainabi)
-        #sysroot = os.path.join(toolchain, self.toolchainabi, 'sysroot')
+        toolchain = os.path.join(self.package_folder, 'x-tools', self.toolchainabi)
 
-        cmake_toolchain = os.path.join(package, 'pico_sdk_init.cmake')
-        #toolchain_bin = os.path.join(toolchain, 'bin')
-
-        #self.output.info('Creating CHOST environment variable: %s' % self.toolchainabi)
-        #self.buildenv_info.define("CHOST", self.toolchainabi)
-
-        #self.output.info('Appending PATH environment variable: %s' % toolchain_bin)
-        #self.buildenv_info.append_path("PATH", toolchain_bin)
+        if self.options.board == 'pico':
+            cmake_toolchain = os.path.join(toolchain, 'arm-pico-eabi.toolchain.cmake')
+        elif self.options.board == 'pico2':
+            cmake_toolchain = os.path.join(toolchain, 'arm-pico2-eabi.toolchain.cmake')
 
         self.output.info('Injecting cmaketoolchain:user_toolchain: %s' % cmake_toolchain)
         self.conf_info.append("tools.cmake.cmaketoolchain:user_toolchain", cmake_toolchain)
+        #self.output.info('Setting PICO_SDK_PATH: %s' % package)
+        #self.conf_info.define("tools.cmake.cmaketoolchain:extra_variables", {'PICO_SDK_PATH': package})
 
-        #self.buildenv_info.define_path("PKG_CONFIG_DIR", "")
-        #self.buildenv_info.define_path("PKG_CONFIG_PATH", "")
-        #self.buildenv_info.define_path("PKG_CONFIG_LIBDIR", os.path.os.path.join(sysroot, "usr", "lib", "arm-linux-gnueabihf", "pkgconfig"))
-        #self.buildenv_info.append_path("PKG_CONFIG_LIBDIR", os.path.os.path.join(sysroot, "usr", "share", "pkgconfig"))
-        #self.buildenv_info.define_path("PKG_CONFIG_SYSROOT_DIR", sysroot)
-
-        #self.buildenv_info.define("CC", self.define_tool_var('CC', self.toolchainabi + '-gcc', toolchain_bin))
-        #self.buildenv_info.define("CXX", self.define_tool_var('CXX', self.toolchainabi + '-g++', toolchain_bin))
-        #self.buildenv_info.define("AS", self.define_tool_var('AS', self.toolchainabi + '-as', toolchain_bin))
-        #self.buildenv_info.define("LD", self.define_tool_var('LD', self.toolchainabi + '-ld', toolchain_bin))
-        #self.buildenv_info.define("AR", self.define_tool_var('AR', self.toolchainabi + '-ar', toolchain_bin))
-        #self.buildenv_info.define("RANLIB", self.define_tool_var('RANLIB', self.toolchainabi + '-ranlib', toolchain_bin))
-        #self.buildenv_info.define("STRIP", self.define_tool_var('STRIP', self.toolchainabi + '-strip', toolchain_bin))
-        #self.buildenv_info.define("NM", self.define_tool_var('NM', self.toolchainabi + '-nm', toolchain_bin))
-        #self.buildenv_info.define("ADDR2LINE", self.define_tool_var('ADDR2LINE', self.toolchainabi + '-addr2line', toolchain_bin))
-        #self.buildenv_info.define("OBJCOPY", self.define_tool_var('OBJCOPY', self.toolchainabi + '-objcopy', toolchain_bin))
-        #self.buildenv_info.define("OBJDUMP", self.define_tool_var('OBJDUMP', self.toolchainabi + '-objdump', toolchain_bin))
-        #self.buildenv_info.define("READELF", self.define_tool_var('READELF', self.toolchainabi + '-readelf', toolchain_bin))
-        #self.buildenv_info.define("ELFEDIT", self.define_tool_var('ELFEDIT', self.toolchainabi + '-elfedit', toolchain_bin))
+        self.buildenv_info.define("PICO_SDK_PATH", os.path.join(self.package_folder, "pico-sdk-%s" % self.version))
 
         self.cpp_info.includedirs = []
         self.cpp_info.libdirs = []
-        self.cpp_info.bindirs = []
+        self.cpp_info.bindirs = ['bin']
+        self.cpp_info.builddirs = ['lib']
