@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 
 from conan import ConanFile
+from conan.tools.scm import Git
 from conan.tools.system.package_manager import Apt, PacMan
-from conan.tools.files import download, get, unzip, copy
+from conan.tools.files import get, copy
 from conan.errors import ConanInvalidConfiguration
 from conan.tools.cmake import CMake, CMakeToolchain
 from conan.tools.env import VirtualBuildEnv
@@ -63,7 +64,8 @@ class RaspberryPiPicoToolchainConan(ConanFile):
         ms.generate()
 
     def source(self):
-        get(self, **self.conan_data["sources"]["sdk"][self.version])
+        git = Git(self)
+        git.clone(url="https://github.com/raspberrypi/pico-sdk.git", target="pico-sdk-%s" % self.version, args=["--branch %s" % self.version, "--recursive", "--depth 1"])
         get(self, **self.conan_data["sources"]["picotool"][self.version])
         get(self, **self.conan_data["sources"]["arm-cross-compiler-pico"]["1.1.0"])
         get(self, **self.conan_data["sources"]["arm-cross-compiler-pico2"]["1.1.0"])
@@ -104,8 +106,6 @@ class RaspberryPiPicoToolchainConan(ConanFile):
 
         self.output.info('Injecting cmaketoolchain:user_toolchain: %s' % cmake_toolchain)
         self.conf_info.append("tools.cmake.cmaketoolchain:user_toolchain", cmake_toolchain)
-        #self.output.info('Setting PICO_SDK_PATH: %s' % package)
-        #self.conf_info.define("tools.cmake.cmaketoolchain:extra_variables", {'PICO_SDK_PATH': package})
 
         self.buildenv_info.define("PICO_SDK_PATH", os.path.join(self.package_folder, "pico-sdk-%s" % self.version))
 
