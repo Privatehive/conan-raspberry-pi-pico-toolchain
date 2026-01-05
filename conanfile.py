@@ -70,6 +70,16 @@ class RaspberryPiPicoToolchainConan(ConanFile):
         get(self, **self.conan_data["sources"]["arm-cross-compiler-pico"]["1.1.0"])
         get(self, **self.conan_data["sources"]["arm-cross-compiler-pico2"]["1.1.0"])
         self.run("chmod -R +w " + os.path.join(self.source_folder, "x-tools"))
+        with open(os.path.join(self.source_folder, "x-tools", "arm-pico-eabi", "arm-pico-eabi.toolchain.cmake"), "r+", encoding="utf-8") as f:
+            lines = f.readlines()
+            f.seek(0)
+            f.write("set(PICO_BOARD pico)")
+            f.writelines(lines)
+        with open(os.path.join(self.source_folder, "x-tools", "arm-pico2-eabi", "arm-pico2-eabi.toolchain.cmake"), "r+", encoding="utf-8") as f:
+            lines = f.readlines()
+            f.seek(0)
+            f.write("set(PICO_BOARD pico2)")
+            f.writelines(lines)
 
     def build(self):
         cmake = CMake(self)
